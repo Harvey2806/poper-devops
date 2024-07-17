@@ -1,2 +1,1 @@
-web: start-nginx
-worker: heroku-php-nginx public/ 
+web: bin/start-nginx bundle exec heroku-php-nginx -C nginx.conf public/ 
