@@ -1,13 +1,26 @@
 {
     "name": "laravel/laravel",
     "type": "project",
+    "branch": "main",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "aliyuncs/oss-sdk-php": "^2.6",
+        "doctrine/annotations": "^2.0",
+        "guzzlehttp/guzzle": "^7.2",
+        "jianyan74/php-excel": "^1.0",
         "laravel/framework": "^11.0",
-        "laravel/tinker": "^2.9"
+        "laravel/tinker": "^2.9",
+        "phpoffice/phpspreadsheet": "^1.29",
+        "qcloud/cos-sdk-v5": "^2.6",
+        "qiniu/php-sdk": "^7.11",
+        "webman/captcha": "^1.0",
+        "ext-pdo": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -23,7 +36,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/Helpers/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
