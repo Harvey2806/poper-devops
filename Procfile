@@ -1,1 +1,1 @@
-web: bin/start-nginx-static
+web: php -S 0.0.0.0:$PORT
