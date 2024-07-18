@@ -54,7 +54,6 @@ http {
 			## Clean URLs: match on extensionless requests.
 			# try_files $uri $uri/ $uri.html =404;
             try_files $uri $uri/ /index.php$query_string;
-			autoindex on;
 		}
 		## Define specific behaviors for sub directories and other locations.
 		# location /assets {
