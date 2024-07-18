@@ -50,7 +50,7 @@ http {
 		## Document root
 		root /app/public;
 
-		#location / {
+		location / {
 			## Clean URLs: match on extensionless requests.
 			# try_files $uri $uri/ $uri.html =404;
             try_files $uri /index.php$is_args$query_string;
