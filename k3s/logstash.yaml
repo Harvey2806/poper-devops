@@ -17,6 +17,13 @@ spec:
       containers:
       - name: logstash
         image: docker.elastic.co/logstash/logstash:7.17.7
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 500m
+          limits:
+            memory: 1Gi
+            cpu: 1000m
         ports:
           - containerPort: 5044
         env:
@@ -25,8 +32,6 @@ spec:
         volumeMounts:
         - name: logstash-config
           mountPath: "/usr/share/logstash/config"
-        - name: elasticsearch-secret
-          mountPath: "/usr/share/logstash/secret"
       volumes:
       - name: logstash-config
         configMap:
@@ -36,6 +41,26 @@ spec:
           secretName: elasticsearch-secret
 
 ---
+kind: Service
+apiVersion: v1
+metadata:
+  name: logstash
+spec:
+  ports:
+    - name: logstash
+      protocol: TCP
+      port: 10000
+      targetPort: 9600
+    - name: filebeat
+      protocol: TCP
+      port: 5044
+      targetPort: 5044
+  selector:
+    app: logstash
+  type: LoadBalancer
+  sessionAffinity: None
+
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -43,9 +68,11 @@ metadata:
   namespace: default
 data:
   logstash.yml: |-
+    http.host: "0.0.0.0"
     path.data: /usr/share/logstash/data
     path.logs: /var/log/logstash
     path.work: /var/lib/logstash
+    config.reload.automatic: true
     pipeline.workers: 1
     pipeline.batch.size: 125
     pipeline.batch.delay: 50
@@ -61,5 +88,14 @@ data:
     pipeline.config.reload.http.host: "localhost"
     pipeline.config.reload.http.port: 7070
     pipeline.config.reload.http.ssl.enabled: false
-
-   
+    xpack.monitoring.elasticsearch.username: ["${elastic_username}"]
+    xpack.monitoring.elasticsearch.password: ["${elastic_password}"]
+vars:
+  - name: elastic_username
+    secretValue: 
+      name: elastic-credentials
+      key: username
+  - name: elastic_password
+    secretValue: 
+      name: elastic-credentials
+      key: password
