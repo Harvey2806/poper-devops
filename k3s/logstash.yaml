@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:7.17.7
+        ports:
+          - containerPort: 5044
+        env:
+        - name: LS_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        volumeMounts:
+        - name: logstash-config
+          mountPath: "/usr/share/logstash/config"
+        - name: elasticsearch-secret
+          mountPath: "/usr/share/logstash/secret"
+      volumes:
+      - name: logstash-config
+        configMap:
+          name: logstash-config
+      - name: elasticsearch-secret
+        secret:
+          secretName: elasticsearch-secret
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: default
+data:
+  logstash.yml: |-
+    path.data: /usr/share/logstash/data
+    path.logs: /var/log/logstash
+    path.work: /var/lib/logstash
+    pipeline.workers: 1
+    pipeline.batch.size: 125
+    pipeline.batch.delay: 50
+    pipeline.max_inflight: 10000
+    pipeline.reload.interval: 15
+    pipeline.reload.timeout: 60
+    pipeline.config.reload.response.timeout: 1
+    pipeline.config.path: /usr/share/logstash/pipeline
+    pipeline.config.reload.enabled: true
+    pipeline.config.reload.dirwatch.poll_interval: 5
+    pipeline.config.reload.dirwatch.enabled: true
+    pipeline.config.reload.http.enabled: true
+    pipeline.config.reload.http.host: "localhost"
+    pipeline.config.reload.http.port: 7070
+    pipeline.config.reload.http.ssl.enabled: false
+
+   
