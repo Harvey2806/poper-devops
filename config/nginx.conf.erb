@@ -49,13 +49,29 @@ http {
 
 		## Document root
 		root /app/public;
-		index index.php;
 
+		#location / {
+		#	## Clean URLs: match on extensionless requests.
+		#	# try_files $uri $uri/ $uri.html =404;
+        #    try_files $uri $uri/ /index.php$query_string;
+		#}
+        
 		location / {
-			## Clean URLs: match on extensionless requests.
-			# try_files $uri $uri/ $uri.html =404;
-            try_files $uri $uri/ /index.php$query_string;
-		}
+            # try to serve file directly, fallback to rewrite
+            try_files $uri @rewriteapp;
+        }
+        
+        location @rewriteapp {
+            # rewrite all to index.php
+            rewrite ^(.*)$ /index.php/$1 last;
+        }
+        
+        location ~ ^/index\.php(/|$) {
+            try_files @heroku-fcgi @heroku-fcgi;
+            # ensure that /index.php isn't accessible directly, but only through a rewrite
+            internal;
+        }
+
 		## Define specific behaviors for sub directories and other locations.
 		# location /assets {
 		# 	expires 7d;
