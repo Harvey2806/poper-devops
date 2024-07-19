@@ -18,79 +18,83 @@ events {
 }
 
 http {
-	gzip on;
-	gzip_comp_level 2;
-	gzip_min_length 512;
-	gzip_proxied any; # Heroku router sends Via header
+	include       mime.types;
+	include       heroku.types;
+	default_type  application/octet-stream;
+
+	log_format  l2met  'measure#nginx.service=$request_time request_id=$http_x_request_id'
+	                  '$remote_addr - $remote_user [$time_local] "$request" '
+	                  '$status $body_bytes_sent "$http_referer" '
+	                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+	access_log /dev/stdout l2met;
+
+	sendfile        on;
+	#tcp_nopush     on;
+
+	#keepalive_timeout  0;
+	keepalive_timeout  65;
+
+	#gzip  on;
 
 	server_tokens off;
 
-	log_format l2met 'measure#nginx.service=$request_time request_id=$http_x_request_id';
-	access_log /dev/stdout l2met;
-	# Remote IP, request path, HTTP status, & timestamp are all logged by Heroku Router, so not useful to include here.
+	fastcgi_buffers 256 4k;
 
-	include mime.types;
-	default_type application/octet-stream;
-	sendfile on;
-
-	client_body_timeout <%= ENV['NGINX_CLIENT_BODY_TIMEOUT'] || 5 %>;
-	# Must read the body in 5 seconds.
-
-	server {
-		listen <%= ENV["PORT"] %>;
-		server_name _;
-		keepalive_timeout 5;
-		client_max_body_size <%= ENV['NGINX_CLIENT_MAX_BODY_SIZE'] || 1 %>M;
-
-		## HTTPS Only
-		if ($http_x_forwarded_proto != "https") {
-			return 301 https://$host$request_uri;
-		}
-
-		## Document root
-		root /app/public;
-
-		#location / {
-		#	## Clean URLs: match on extensionless requests.
-		#	# try_files $uri $uri/ $uri.html =404;
-        #    try_files $uri $uri/ /index.php$query_string;
-		#}
-        
-		location / {
-            # try to serve file directly, fallback to rewrite
-            try_files $uri @rewriteapp;
-        }
-        
-        location @rewriteapp {
-            # rewrite all to index.php
-            rewrite ^(.*)$ /index.php/$1 last;
-        }
-        
-        location ~ ^/index\.php(/|$) {
-            try_files @heroku-fcgi @heroku-fcgi;
-            # ensure that /index.php isn't accessible directly, but only through a rewrite
-            internal;
-        }
-
-		## Define specific behaviors for sub directories and other locations.
-		# location /assets {
-		# 	expires 7d;
-		# }
-
-		## Custom error pages
-		# error_page 404 /404.html;
-		# error_page 500 /500.html;
+	# define an easy to reference name that can be used in fastgi_pass
+	upstream heroku-fcgi {
+		#server 127.0.0.1:4999 max_fails=3 fail_timeout=3s;
+		server unix:/tmp/heroku.fcgi.<?=getenv('PORT')?:'8080'?>.sock max_fails=3 fail_timeout=3s;
+		keepalive 16;
 	}
 
-	## Canonical Host: redirect to a canonical hostname.
-	## Multiple server blocks may be used, one for each hostname to redirect from.
-	# server { 
-	# 	server_name some-other-name.example.com;
-	# 	return 301 https://canonical-name.example.com$request_uri;
-	# }
-	# server { 
-	# 	server_name yet-another-name.example.com;
-	# 	return 301 https://canonical-name.example.com$request_uri;
-	# }
-	# …
+	server {
+		# define an easy to reference name that can be used in try_files
+		location @heroku-fcgi {
+			include fastcgi_params;
+
+			fastcgi_split_path_info ^(.+\.php)(/.*)$;
+			fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+			# try_files resets $fastcgi_path_info, see http://trac.nginx.org/nginx/ticket/321, so we use the if instead
+			fastcgi_param PATH_INFO $fastcgi_path_info if_not_empty;
+			# pass actual request host instead of localhost
+			fastcgi_param SERVER_NAME $host;
+
+			if (!-f $document_root$fastcgi_script_name) {
+				# check if the script exists
+				# otherwise, /foo.jpg/bar.php would get passed to FPM, which wouldn't run it as it's not in the list of allowed extensions, but this check is a good idea anyway, just in case
+				return 404;
+			}
+
+			fastcgi_pass heroku-fcgi;
+		}
+
+		server_name localhost;
+		listen <?=getenv('PORT')?:'8080'?>;
+		# FIXME: breaks redirects with foreman
+		port_in_redirect off;
+
+		root "<?=getenv('DOCUMENT_ROOT')?:getenv('HEROKU_APP_DIR')?:getcwd()?>";
+
+		error_log stderr;
+		access_log /tmp/heroku.nginx_access.<?=getenv('PORT')?:'8080'?>.log;
+
+		include "<?=getenv('HEROKU_PHP_NGINX_CONFIG_INCLUDE')?>";
+
+		location / {
+          try_files $uri /index.php$is_args$query_string;
+        }
+
+		# restrict access to hidden files, just in case, except for the
+		# visible content from within the `/.well-known/` hidden directory.
+		# https://tools.ietf.org/html/rfc5785
+		location ~* /\.(?!well-known\/) {
+			deny all;
+		}
+
+		# default handling of .php
+		location ~ \.php {
+			try_files @heroku-fcgi @heroku-fcgi;
+		}
+	}
 }
