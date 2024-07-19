@@ -1,1 +1,1 @@
-web: bin/start-nginx-static
+web: heroku-php-nginx -C nginx_app.conf public/
