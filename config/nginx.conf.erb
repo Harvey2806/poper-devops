@@ -19,7 +19,7 @@ events {
 
 http {
 	include       mime.types;
-	include       heroku.types;
+	#include       heroku.types;
 	default_type  application/octet-stream;
 
 	log_format  l2met  'measure#nginx.service=$request_time request_id=$http_x_request_id'
