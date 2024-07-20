@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => env('LOG_CHANNEL', 'syslog'),
 
     /*
     |--------------------------------------------------------------------------
@@ -110,6 +110,11 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'with' => [
+                'format' => "[%datetime%] %channel%.%level_name%: %message% {\"request_id\":\"%context.request_id%\",\"user_id\":\"%context.user_id%\",\"ip\":\"%context.ip%\",\"context\":%context%,\"extra\":%extra%}\n",
+                'allowInlineLineBreaks' => true,
+                'ignoreEmptyContextAndExtra' => true,
+            ],
         ],
 
         'errorlog' => [
