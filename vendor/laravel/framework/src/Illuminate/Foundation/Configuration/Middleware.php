@@ -545,18 +545,18 @@ class Middleware
         return $this;
     }
 
-    /**
-     * Configure the CSRF token validation middleware.
-     *
-     * @param  array  $except
-     * @return $this
-     */
-    public function validateCsrfTokens(array $except = [])
-    {
-        ValidateCsrfToken::except($except);
-
-        return $this;
-    }
+    ///**
+    // * Configure the CSRF token validation middleware.
+    // *
+    // * @param  array  $except
+    // * @return $this
+    // */
+    //public function validateCsrfTokens(array $except = [])
+    //{
+    //    ValidateCsrfToken::except($except);
+//
+    //    return $this;
+    //}
 
     /**
      * Configure the URL signature validation middleware.
