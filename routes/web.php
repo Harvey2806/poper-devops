@@ -1,124 +1,48 @@
 <?php
 
-use Illuminate\Container\Container;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
+use Thans\Bpm\Http\Controllers\AuthController;
+use Thans\Bpm\Http\Controllers\DataRoleController;
+use Thans\Bpm\Http\Controllers\DingtalkLoginController;
+use Thans\Bpm\Http\Controllers\RoleController;
+use Thans\Bpm\Http\Controllers\UserController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
-
-// 系统首页
-Route::get('/', function () {
-    return redirect('/' . config('easyadmin.ADMIN'));
-})->middleware([\App\Http\Middleware\CheckInstall::class]);
-
-// 首次安装管理系统
-Route::controller(\App\Http\Controllers\common\InstallController::class)->group(function () {
-    Route::match(['get', 'post'], '/install', 'index');
-});
-
-// 后台所有路由
-$admin = config('admin.admin_alias_name');
-
-Route::middleware([\App\Http\Middleware\SystemLog::class, \App\Http\Middleware\CheckAuth::class])->group(function () use ($admin) {
-    Route::prefix($admin)->group(function () {
-
-        // 后台首页
-        Route::get('/', [\App\Http\Controllers\admin\IndexController::class, 'index']);
-
-        $adminNamespace = config('admin.controller_namespace');
-        // 动态路由 (匹配 secondary/controller.action)
-        Route::match(['get', 'post'], '/{secondary}.{controller}/{action}', function ($secondary, $controller, $action) use ($adminNamespace) {
-
-            $namespace = $adminNamespace . $secondary . '\\';
-            $className = $namespace . ucfirst($controller . "Controller");
-            $className = Str::studly($className);
-            if (class_exists($className)) {
-                $obj = new $className();
-                if (method_exists($obj, $action)) {
-                    $reflectionClass = new ReflectionClass($className);
-                    $actionMethod    = $reflectionClass->getMethod($action);
-                    $args            = [];
-                    foreach ($actionMethod->getParameters() as $items) {
-                        try {
-                            if ($items->hasType()) {
-                                $type   = $items->getType()->getName();
-                                $args[] = str_contains($type, 'App\\') ? new $type() : Container::getInstance()->make($type);
-                            }else {
-                                $args[] = request($items->getName(), '');
-                            }
-                        }catch (Throwable $exception) {
-                        }
-                    }
-                    return call_user_func([$obj, $action], ...$args);
-                }
-            }
-            abort(404);
-        });
-
-        // 动态路由 (匹配 controller)
-        Route::match(['get', 'post'], '/{controller}/', function ($controller) use ($adminNamespace) {
-            $namespace = $adminNamespace;
-            $className = $namespace . ucfirst($controller . "Controller");
-            $action    = 'index';
-            if (class_exists($className)) {
-                $obj = new $className();
-                if (method_exists($obj, $action)) {
-                    $reflectionClass = new ReflectionClass($className);
-                    $actionMethod    = $reflectionClass->getMethod($action);
-                    $args            = [];
-                    foreach ($actionMethod->getParameters() as $items) {
-                        try {
-                            if ($items->hasType()) {
-                                $type   = $items->getType()->getName();
-                                $args[] = str_contains($type, 'App\\') ? new $type() : Container::getInstance()->make($type);
-                            }else {
-                                $args[] = request($items->getName(), '');
-                            }
-                        }catch (Throwable $exception) {
-                        }
-                    }
-                    return call_user_func([$obj, $action], ...$args);
-                }
-            }
-            abort(404);
-        });
-
-        // 动态路由 (匹配 controller/action)
-        Route::match(['get', 'post'], '/{controller}/{action}', function ($controller, $action) use ($adminNamespace) {
-            $namespace = $adminNamespace;
-            $className = $namespace . ucfirst($controller . "Controller");
-            if (class_exists($className)) {
-                $obj = new $className();
-                if (method_exists($obj, $action)) {
-                    $reflectionClass = new ReflectionClass($className);
-                    $actionMethod    = $reflectionClass->getMethod($action);
-                    $args            = [];
-                    foreach ($actionMethod->getParameters() as $items) {
-                        try {
-                            if ($items->hasType()) {
-                                $type   = $items->getType()->getName();
-                                $args[] = str_contains($type, 'App\\') ? new $type() : Container::getInstance()->make($type);
-                            }else {
-                                $args[] = request($items->getName(), '');
-                            }
-                        }catch (Throwable $exception) {
-                        }
-                    }
-                    return call_user_func([$obj, $action], ...$args);
-                }
-            }
-            abort(404);
-        });
-
+Route::group([
+    'prefix' => 'bpm',
+    'namespace'     => 'Thans\\Bpm\\Http\\Controllers',
+    'middleware' => config('admin.route.middleware'),
+], function () {
+    Route::resource('forms', 'FormBuilderController');
+    Route::group(['prefix' => 'form'], function () {
+        Route::get('events', 'FormBuilderController@formEVents')->name('bpm.formEvents');
+        // Route::get('auth/department/actions', 'FormBuilderController@formDepartmentActions')->name('bpm.formDepartmentActions');
+        // Route::get('auth/user/actions', 'FormBuilderController@formUserActions')->name('bpm.formUserActions');
+        Route::get('/', 'FormController@index')->name('bpm.baseurl');
     });
+    Route::resource('department/user', 'DepartmentUserController');
+    Route::resource('department', 'DepartmentController');
+    Route::resource('apps', 'AppsController');
+    Route::resource('/{alias}/form', 'BpmController');
+    Route::delete('/{alias}/form/{form}', 'BpmController@destroy')->name('form.destroy');
+    Route::post('/form/{id}/temp', 'FormController@temp')->name('bpm.formTemp');
+    Route::any('/form/{id}/submission',  'FormController@submission')->name('bpm.formSubmission');
+    Route::get('/form/{id}', 'FormController@detail')->name('bpm.formDetail');
+    //文件上传
+    Route::any('/file',  'FileController@handle')->name('bpm.file');
 });
 
+//覆盖登录页面操作
+Route::post('auth/login', [AuthController::class, 'postLogin']);
+Route::resource('auth/users', UserController::class);
+Route::resource('auth/roles', RoleController::class);
+Route::get('data/roles/{roleId}', [DataRoleController::class, 'index']);
+Route::post('data/roles', [DataRoleController::class, 'store']);
+
+Route::group([
+    'prefix' => 'dingtalk',
+    'namespace'     => 'Thans\\Bpm\\Http\\Controllers\\DingTalk',
+    'middleware' => config('admin.route.middleware'),
+], function () {
+    Route::get('unbind', 'LoginController@unbind')->name('dingtalk.unbind');
+    Route::get('bind', 'LoginController@bind')->name('dingtalk.bind');
+});
