@@ -9,5 +9,7 @@ jobs:
     name: apply pipeline
     runs-on: self-hosted
     steps:
+    - name: checkout
+      uses: actions/checkout@v4
     - name: deploy
       run: kubectl apply -f k3s/pipeline.yaml
