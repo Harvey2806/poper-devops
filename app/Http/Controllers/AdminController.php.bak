@@ -1,0 +1,72 @@
+<?php
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use App\Models\Role;
+use App\Models\Permission;
+use Illuminate\Http\Request;
+
+class AdminController extends Controller
+{
+    public function manageUsers()
+    {
+        $users = User::all();
+        return view('admin.users', compact('users'));
+    }
+
+    public function assignRole(Request $request)
+    {
+        $user = User::findOrFail($request->user_id);
+        $role = Role::where('name', $request->role_name)->first();
+
+        if (!$role || !$user) {
+            return redirect()->back()->with('error', 'User or Role not found.');
+        }
+
+        $user->assignRole($role);
+
+        return redirect()->back()->with('success', 'Role assigned successfully.');
+    }
+
+    public function removeRole(Request $request)
+    {
+        $user = User::findOrFail($request->user_id);
+        $role = Role::where('name', $request->role_name)->first();
+
+        if (!$role || !$user) {
+            return redirect()->back()->with('error', 'User or Role not found.');
+        }
+
+        $user->removeRole($role);
+
+        return redirect()->back()->with('success', 'Role removed successfully.');
+    }
+
+    public function givePermission(Request $request)
+    {
+        $user = User::findOrFail($request->user_id);
+        $permission = Permission::where('name', $request->permission_name)->first();
+
+        if (!$permission || !$user) {
+            return redirect()->back()->with('error', 'User or Permission not found.');
+        }
+
+        $user->givePermissionTo($permission);
+
+        return redirect()->back()->with('success', 'Permission granted successfully.');
+    }
+
+    public function revokePermission(Request $request)
+    {
+        $user = User::findOrFail($request->user_id);
+        $permission = Permission::where('name', $request->permission_name)->first();
+
+        if (!$permission || !$user) {
+            return redirect()->back()->with('error', 'User or Permission not found.');
+        }
+
+        $user->revokePermissionTo($permission);
+
+        return redirect()->back()->with('success', 'Permission revoked successfully.');
+    }
+}

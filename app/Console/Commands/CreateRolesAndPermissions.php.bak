@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+
+class CreateRolesAndPermissions extends Command
+{
+    protected $signature = 'roles:permissions:create';
+    
+    protected $description = 'Create default roles and permissions for the application.';
+    
+    public function __construct()
+    {
+        parent::__construct();
+    }
+    
+    public function handle()
+    {
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $studentRole = Role::firstOrCreate(['name' => 'student']);
+        
+        $createStudentsPerm = Permission::firstOrCreate(['name' => 'create-students']);
+        $manageStudentsPerm = Permission::firstOrCreate(['name' => 'manage-students']);
+        
+        $adminRole->givePermissionTo([$createStudentsPerm, $manageStudentsPerm]);
+    }
+}
