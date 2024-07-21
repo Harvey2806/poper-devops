@@ -17,11 +17,14 @@ data:
         }
         if [request_id] {
             aggregate {
-                group_on => "request_id"
-                id => "request_group"
+                task_id => "%{request_id}"
+                code => "
+                  map['message'] << event.get('message')
+                  event.cancel()
+                "
+                map_action => "create_or_update"
+                push_map_as_event_on_timeout => true
                 timeout => 5
-                on_timeout => "emit_group"
-                on_start => "emit_group"
                 add_tag => ["aggregated"]
             }
         }
