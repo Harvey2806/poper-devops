@@ -15,19 +15,15 @@ data:
        grok {
         match => ["message", "%{SYSLOG5424PRI}%{NONNEGINT:syslog5424_ver} +(?:%{TIMESTAMP_ISO8601:timestamp}|-) +(?:%{HOSTNAME:heroku_drain_id}|-) +(?:%{WORD:heroku_source}|-) +(?:%{DATA:heroku_dyno}|-) +(?:%{WORD:syslog5424_msgid}|-) +(?:%{SYSLOG5424SD:syslog5424_sd}|-|) +%{GREEDYDATA:heroku_message}"]
         }
-
-        aggregator {
-          id => "request_aggregator"
-          source_field => "request_id"
-          target_field => "aggregated_id"
-          aggregation_method => "append"
-          flush_timeout => 10
-          max_events => 5
-        }
-        if [aggregated_id] {
-          mutate {
-            add_tag => ["aggregate"]
-          }
+        if [request_id] {
+            aggregate {
+                group_on => "request_id"
+                id => "request_group"
+                timeout => 5
+                on_timeout => "emit_group"
+                on_start => "emit_group"
+                add_tag => ["aggregated"]
+            }
         }
         mutate { rename => ["heroku_message", "message"] }
         kv { source => "message" }
@@ -68,7 +64,7 @@ data:
           index => "app-%{+YYYY.MM.dd}"
         }
       }
-      if "aggregate" in [tags] {
+      if "aggregated" in [tags] {
         elasticsearch {
           hosts => "http://elasticsearch.default.svc.cluster.local:9200"
           user => "${ELASTICSEARCH_USERNAME}"
