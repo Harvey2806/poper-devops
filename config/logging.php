@@ -116,6 +116,7 @@ return [
                 'allowInlineLineBreaks' => true,
                 'ignoreEmptyContextAndExtra' => true,
             ],
+            'processors' => [LogRequest::class],
         ],
 
         'errorlog' => [
